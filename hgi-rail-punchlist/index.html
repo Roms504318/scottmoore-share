@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Punch List Tracker</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #d1d5db;
+      --accent: #1d4ed8;
+      --success: #166534;
+      --warn: #b45309;
+      --soft: #eef2ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+
+    .header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+      max-width: 850px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button, .file-label {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    button.ghost {
+      background: #fff;
+    }
+
+    .note {
+      margin: 16px 24px 0 24px;
+      border: 1px solid #fcd34d;
+      background: #fffbeb;
+      color: #78350f;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      padding: 16px 16px 20px 16px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1280px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 12px;
+      color: #374151;
+    }
+
+    tr:hover td {
+      background: #fcfcff;
+    }
+
+    .section {
+      font-weight: 700;
+      white-space: nowrap;
+      color: #1f2937;
+      width: 120px;
+    }
+
+    .item {
+      min-width: 400px;
+      line-height: 1.45;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      min-width: 84px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .stamp {
+      min-width: 165px;
+      color: #111827;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .done-badge, .approved-badge, .pending-badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .done-badge {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .approved-badge {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .pending-badge {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini {
+      padding: 8px 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .mark {
+      background: #ecfdf5;
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    .approve {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+    }
+
+    .clear {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #9a3412;
+    }
+
+    .footer {
+      padding: 0 24px 24px 24px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media print {
+      .toolbar, .note { display: none; }
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .card { border: none; box-shadow: none; border-radius: 0; }
+      th { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div>
+          <h1 id="projectTitle">Punch List Tracker</h1>
+          <div class="sub">
+            Shareable punch list with initials and timestamp tracking for both completion and approval.
+            This version saves data in the browser on the device being used.
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <button class="primary" id="printBtn">Print / Save PDF</button>
+          <button class="ghost" id="exportBtn">Export Data</button>
+          <label class="file-label" for="importFile">Import Data</label>
+          <input id="importFile" class="hidden" type="file" accept="application/json" />
+          <button class="ghost" id="resetBtn">Reset All</button>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Important:</strong> if you host this as a simple HTML page on your domain, each device keeps its own saved version.
+        If you want one live shared list where everyone sees the same updates, this same layout needs a small database behind it.
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th>Action Item</th>
+              <th>Done Initials</th>
+              <th>Done Action</th>
+              <th>Done Timestamp</th>
+              <th>Approval Initials</th>
+              <th>Approval Action</th>
+              <th>Approval Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        Tip: use a subdomain like <strong>punchlist.sco-mo.com</strong> for the cleanest link.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "sco_mo_punch_list_v1";
+
+    const defaultRows = [
+      {
+        id: "bench-1",
+        section: "Bench / TC",
+        item: "Furnish 18 additional angle clips.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "bench-2",
+        section: "Bench / TC",
+        item: "Ensure all 52 clips are hot-dip galvanized and welded to the bench legs.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "bench-3",
+        section: "Bench / TC",
+        item: "Redo weak welds at the corner bench connections.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "bench-4",
+        section: "Bench / TC",
+        item: "Cut tubing as needed so benches meet flush with no gaps.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "bench-5",
+        section: "Bench / TC",
+        item: "Grind smooth all weld points.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "bench-6",
+        section: "Bench / TC",
+        item: "Apply galvanized coating to all finished weld areas.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-1",
+        section: "Railings",
+        item: "Ensure uniform welds at all accessible rail tubing connections and post caps.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-2",
+        section: "Railings",
+        item: "Wire brush or flap-wheel buff all weld points smooth.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-3",
+        section: "Railings",
+        item: "Eliminate any sharp or unsafe edges at post caps that could injure hands.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-4",
+        section: "Railings",
+        item: "Weld cut through-bolts to posts with galvanized washers.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-5",
+        section: "Railings",
+        item: "Apply galvanized base coat to all weld points.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-6",
+        section: "Railings",
+        item: "Apply shiny metallic top coat for a uniform finish.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      },
+      {
+        id: "rail-7",
+        section: "Railings",
+        item: "Clean and prep all rails to ensure proper coating adhesion and consistent appearance.",
+        doneInitials: "",
+        doneAt: "",
+        approvedInitials: "",
+        approvedAt: ""
+      }
+    ];
+
+    function nowStamp() {
+      return new Date().toLocaleString([], {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function loadRows() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return structuredClone(defaultRows);
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : structuredClone(defaultRows);
+      } catch (e) {
+        return structuredClone(defaultRows);
+      }
+    }
+
+    let rows = loadRows();
+
+    function saveRows() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    }
+
+    function updateInitials(id, field, value) {
+      const row = rows.find(r => r.id === id);
+      if (!row) return;
+      row[field] = value.toUpperCase().slice(0, 6);
+      saveRows();
+    }
+
+    function markDone(id) {
+      const row = rows.find(r => r.id === id);
+      if (!row) return;
+      if (!row.doneInitials.trim()) {
+        alert("Enter done initials first.");
+        return;
+      }
+      row.doneAt = nowStamp();
+      saveRows();
+      render();
+    }
+
+    function approveItem(id) {
+      const row = rows.find(r => r.id === id);
+      if (!row) return;
+      if (!row.approvedInitials.trim()) {
+        alert("Enter approval initials first.");
+        return;
+      }
+      row.approvedAt = nowStamp();
+      saveRows();
+      render();
+    }
+
+    function clearDone(id) {
+      const row = rows.find(r => r.id === id);
+      if (!row) return;
+      row.doneAt = "";
+      saveRows();
+      render();
+    }
+
+    function clearApproval(id) {
+      const row = rows.find(r => r.id === id);
+      if (!row) return;
+      row.approvedAt = "";
+      saveRows();
+      render();
+    }
+
+    function badgeHtml(type, hasValue) {
+      if (type === "done") {
+        return hasValue
+          ? '<div class="done-badge">Done</div>'
+          : '<div class="pending-badge">Pending</div>';
+      }
+      return hasValue
+        ? '<div class="approved-badge">Approved</div>'
+        : '<div class="pending-badge">Pending</div>';
+    }
+
+    function render() {
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = rows.map(row => `
+        <tr>
+          <td class="section">${row.section}</td>
+          <td class="item">${row.item}</td>
+
+          <td>
+            <input
+              type="text"
+              value="${escapeHtml(row.doneInitials)}"
+              placeholder="e.g. OS"
+              oninput="updateInitials('${row.id}', 'doneInitials', this.value)"
+            />
+          </td>
+
+          <td>
+            <div class="row-actions">
+              <button class="mini mark" onclick="markDone('${row.id}')">Mark Done</button>
+              <button class="mini clear" onclick="clearDone('${row.id}')">Clear</button>
+            </div>
+          </td>
+
+          <td class="stamp">
+            ${badgeHtml("done", !!row.doneAt)}
+            ${row.doneAt ? `<div>${escapeHtml(row.doneAt)}</div>` : '<div class="muted">Not stamped</div>'}
+          </td>
+
+          <td>
+            <input
+              type="text"
+              value="${escapeHtml(row.approvedInitials)}"
+              placeholder="e.g. OS"
+              oninput="updateInitials('${row.id}', 'approvedInitials', this.value)"
+            />
+          </td>
+
+          <td>
+            <div class="row-actions">
+              <button class="mini approve" onclick="approveItem('${row.id}')">Approve</button>
+              <button class="mini clear" onclick="clearApproval('${row.id}')">Clear</button>
+            </div>
+          </td>
+
+          <td class="stamp">
+            ${badgeHtml("approved", !!row.approvedAt)}
+            ${row.approvedAt ? `<div>${escapeHtml(row.approvedAt)}</div>` : '<div class="muted">Not stamped</div>'}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "punch-list-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("importFile").addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) throw new Error("Invalid format");
+          rows = imported;
+          saveRows();
+          render();
+          alert("Data imported.");
+        } catch (err) {
+          alert("That file could not be imported.");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      const ok = confirm("Reset all initials and timestamps?");
+      if (!ok) return;
+      rows = structuredClone(defaultRows);
+      saveRows();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
