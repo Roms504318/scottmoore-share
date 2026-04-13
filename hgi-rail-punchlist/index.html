@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Punch List Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
       --bg: #f5f7fb;
@@ -70,7 +71,7 @@
       align-items: center;
     }
 
-    button, .file-label {
+    button {
       border: 1px solid var(--line);
       background: white;
       color: var(--text);
@@ -91,19 +92,23 @@
       border-color: var(--accent);
     }
 
-    button.ghost {
-      background: #fff;
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
     }
 
-    .note {
-      margin: 16px 24px 0 24px;
-      border: 1px solid #fcd34d;
-      background: #fffbeb;
-      color: #78350f;
-      padding: 12px 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.45;
+    .status-dot.connected { background: #22c55e; }
+    .status-dot.disconnected { background: #ef4444; }
+    .status-dot.loading { background: #f59e0b; }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
     }
 
     .table-wrap {
@@ -235,12 +240,8 @@
       line-height: 1.5;
     }
 
-    .hidden {
-      display: none;
-    }
-
     @media print {
-      .toolbar, .note { display: none; }
+      .toolbar, .status-bar { display: none; }
       body { background: white; }
       .wrap { max-width: none; padding: 0; }
       .card { border: none; box-shadow: none; border-radius: 0; }
@@ -256,22 +257,17 @@
           <h1 id="projectTitle">Punch List Tracker</h1>
           <div class="sub">
             Shareable punch list with initials and timestamp tracking for both completion and approval.
-            This version saves data in the browser on the device being used.
+            Changes sync live across all devices.
           </div>
         </div>
 
         <div class="toolbar">
+          <div class="status-bar">
+            <span class="status-dot loading" id="statusDot"></span>
+            <span id="statusText">Connecting&hellip;</span>
+          </div>
           <button class="primary" id="printBtn">Print / Save PDF</button>
-          <button class="ghost" id="exportBtn">Export Data</button>
-          <label class="file-label" for="importFile">Import Data</label>
-          <input id="importFile" class="hidden" type="file" accept="application/json" />
-          <button class="ghost" id="resetBtn">Reset All</button>
         </div>
-      </div>
-
-      <div class="note">
-        <strong>Important:</strong> if you host this as a simple HTML page on your domain, each device keeps its own saved version.
-        If you want one live shared list where everyone sees the same updates, this same layout needs a small database behind it.
       </div>
 
       <div class="table-wrap">
@@ -293,134 +289,105 @@
       </div>
 
       <div class="footer">
-        Tip: use a subdomain like <strong>punchlist.sco-mo.com</strong> for the cleanest link.
+        Live-synced via Supabase &mdash; all viewers see updates in real time.
       </div>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = "sco_mo_punch_list_v1";
+    // ── Supabase config ──────────────────────────────────────────────
+    // Replace these with your Supabase project values:
+    //   Project Settings > API > Project URL  &  anon / public key
+    const SUPABASE_URL  = "https://inwthpqlqlfsyhjwdncn.supabase.co";
+    const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlud3RocHFscWxmc3lhandkbmNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNTU5NDAsImV4cCI6MjA5MTYzMTk0MH0.BfnozIms9i7gcairFESiX44bIV3Hl1WuIuPKlFhl1c4";
 
-    const defaultRows = [
-      {
-        id: "bench-1",
-        section: "Bench / TC",
-        item: "Furnish 18 additional angle clips.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "bench-2",
-        section: "Bench / TC",
-        item: "Ensure all 52 clips are hot-dip galvanized and welded to the bench legs.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "bench-3",
-        section: "Bench / TC",
-        item: "Redo weak welds at the corner bench connections.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "bench-4",
-        section: "Bench / TC",
-        item: "Cut tubing as needed so benches meet flush with no gaps.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "bench-5",
-        section: "Bench / TC",
-        item: "Grind smooth all weld points.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "bench-6",
-        section: "Bench / TC",
-        item: "Apply galvanized coating to all finished weld areas.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-1",
-        section: "Railings",
-        item: "Ensure uniform welds at all accessible rail tubing connections and post caps.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-2",
-        section: "Railings",
-        item: "Wire brush or flap-wheel buff all weld points smooth.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-3",
-        section: "Railings",
-        item: "Eliminate any sharp or unsafe edges at post caps that could injure hands.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-4",
-        section: "Railings",
-        item: "Weld cut through-bolts to posts with galvanized washers.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-5",
-        section: "Railings",
-        item: "Apply galvanized base coat to all weld points.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-6",
-        section: "Railings",
-        item: "Apply shiny metallic top coat for a uniform finish.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
-      },
-      {
-        id: "rail-7",
-        section: "Railings",
-        item: "Clean and prep all rails to ensure proper coating adhesion and consistent appearance.",
-        doneInitials: "",
-        doneAt: "",
-        approvedInitials: "",
-        approvedAt: ""
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ── State ────────────────────────────────────────────────────────
+    let rows = [];
+    let debounceTimers = {};
+
+    // ── Status indicator ─────────────────────────────────────────────
+    function setStatus(state, text) {
+      const dot = document.getElementById("statusDot");
+      const label = document.getElementById("statusText");
+      dot.className = "status-dot " + state;
+      label.textContent = text;
+    }
+
+    // ── Load from Supabase ───────────────────────────────────────────
+    async function loadRows() {
+      const { data, error } = await sb
+        .from("punch_items")
+        .select("*")
+        .order("id");
+
+      if (error) {
+        console.error("Load error:", error);
+        setStatus("disconnected", "Connection error");
+        return;
       }
-    ];
 
+      rows = data.map(r => ({
+        id: r.id,
+        section: r.section,
+        item: r.item,
+        doneInitials: r.done_initials || "",
+        doneAt: r.done_at || "",
+        approvedInitials: r.approved_initials || "",
+        approvedAt: r.approved_at || ""
+      }));
+
+      setStatus("connected", "Live");
+      render();
+    }
+
+    // ── Save a single row to Supabase ────────────────────────────────
+    async function saveRow(row) {
+      const { error } = await sb
+        .from("punch_items")
+        .update({
+          done_initials: row.doneInitials,
+          done_at: row.doneAt,
+          approved_initials: row.approvedInitials,
+          approved_at: row.approvedAt
+        })
+        .eq("id", row.id);
+
+      if (error) console.error("Save error:", error);
+    }
+
+    // ── Realtime subscription ────────────────────────────────────────
+    function subscribe() {
+      sb.channel("punch_items_changes")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "punch_items" },
+          (payload) => {
+            const r = payload.new;
+            const idx = rows.findIndex(row => row.id === r.id);
+            if (idx === -1) return;
+
+            rows[idx] = {
+              id: r.id,
+              section: r.section,
+              item: r.item,
+              doneInitials: r.done_initials || "",
+              doneAt: r.done_at || "",
+              approvedInitials: r.approved_initials || "",
+              approvedAt: r.approved_at || ""
+            };
+            render();
+          }
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setStatus("connected", "Live");
+          }
+        });
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
     function nowStamp() {
       return new Date().toLocaleString([], {
         year: "numeric",
@@ -431,28 +398,24 @@
       });
     }
 
-    function loadRows() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) return structuredClone(defaultRows);
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? parsed : structuredClone(defaultRows);
-      } catch (e) {
-        return structuredClone(defaultRows);
-      }
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
-    let rows = loadRows();
-
-    function saveRows() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-    }
-
+    // ── Actions ──────────────────────────────────────────────────────
     function updateInitials(id, field, value) {
       const row = rows.find(r => r.id === id);
       if (!row) return;
       row[field] = value.toUpperCase().slice(0, 6);
-      saveRows();
+
+      // Debounce DB write while user is typing
+      clearTimeout(debounceTimers[id + field]);
+      debounceTimers[id + field] = setTimeout(() => saveRow(row), 400);
     }
 
     function markDone(id) {
@@ -463,7 +426,7 @@
         return;
       }
       row.doneAt = nowStamp();
-      saveRows();
+      saveRow(row);
       render();
     }
 
@@ -475,7 +438,7 @@
         return;
       }
       row.approvedAt = nowStamp();
-      saveRows();
+      saveRow(row);
       render();
     }
 
@@ -483,7 +446,7 @@
       const row = rows.find(r => r.id === id);
       if (!row) return;
       row.doneAt = "";
-      saveRows();
+      saveRow(row);
       render();
     }
 
@@ -491,7 +454,7 @@
       const row = rows.find(r => r.id === id);
       if (!row) return;
       row.approvedAt = "";
-      saveRows();
+      saveRow(row);
       render();
     }
 
@@ -506,12 +469,13 @@
         : '<div class="pending-badge">Pending</div>';
     }
 
+    // ── Render ───────────────────────────────────────────────────────
     function render() {
       const tbody = document.getElementById("tbody");
       tbody.innerHTML = rows.map(row => `
         <tr>
-          <td class="section">${row.section}</td>
-          <td class="item">${row.item}</td>
+          <td class="section">${escapeHtml(row.section)}</td>
+          <td class="item">${escapeHtml(row.item)}</td>
 
           <td>
             <input
@@ -558,56 +522,10 @@
       `).join("");
     }
 
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
+    // ── Init ─────────────────────────────────────────────────────────
     document.getElementById("printBtn").addEventListener("click", () => window.print());
-
-    document.getElementById("exportBtn").addEventListener("click", () => {
-      const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "punch-list-data.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    document.getElementById("importFile").addEventListener("change", (event) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (!Array.isArray(imported)) throw new Error("Invalid format");
-          rows = imported;
-          saveRows();
-          render();
-          alert("Data imported.");
-        } catch (err) {
-          alert("That file could not be imported.");
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = "";
-    });
-
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      const ok = confirm("Reset all initials and timestamps?");
-      if (!ok) return;
-      rows = structuredClone(defaultRows);
-      saveRows();
-      render();
-    });
-
-    render();
+    loadRows();
+    subscribe();
   </script>
 </body>
 </html>
